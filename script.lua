@@ -617,7 +617,7 @@ local LocalPlayer = Players.LocalPlayer
 local Settings = {
     AudioId = "rbxassetid://138324332743976", -- Твой ID звука
     PitchSpeed = 0.1,                          -- Мрачная замедленная скорость
-    Volume = 2.0,                              -- Громкость
+    Volume = 1,                              -- Громкость
 }
 
 local currentSound = nil
