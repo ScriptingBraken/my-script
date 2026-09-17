@@ -718,5 +718,119 @@ print("[Xeno Audio]: Скрипт бесконечной паузы звука �
 
 wait(1)
 
+-- Идеально настроенная вами баллистика
+local ARROW_SPEED = 165   
+local CUSTOM_GRAVITY = 42 
+local DOT_COUNT = 65      -- Увеличили количество точек для сверхдальних дистанций
+
+local Player = game:GetService("Players").LocalPlayer
+local Mouse = Player:GetMouse()
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- Проверяем инвентарь по структуре из Dex
+local customBackpack = Player:WaitForChild("backpack", 5)
+local equippedValue = customBackpack and customBackpack:WaitForChild("equipped", 5)
+
+-- Настройка фильтра коллизий
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+-- Создаем лазерную цепочку из крошечных сфер
+local lineParts = {}
+for i = 1, DOT_COUNT do
+    local part = Instance.new("Part")
+    part.Shape = Enum.PartType.Ball
+    part.Size = Vector3.new(0.1, 0.1, 0.1) -- Ещё более аккуратные и тонкие точки
+    part.Color = Color3.fromRGB(0, 255, 255) -- Бирюзовый неон
+    part.Material = Enum.Material.Neon
+    part.Anchored = true
+    
+    -- Полная физическая изоляция, чтобы стрелы не застревали
+    part.CanCollide = false
+    part.CanTouch = false
+    part.CanQuery = false
+    
+    part.Transparency = 1
+    part.Parent = workspace
+    table.insert(lineParts, part)
+end
+
+local function hidePrediction()
+    for _, part in ipairs(lineParts) do
+        part.Transparency = 1
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    -- Проверяем хэштег "equipped"
+    if not equippedValue or equippedValue.Value ~= "Compound Bow" then
+        return hidePrediction()
+    end
+    
+    local character = Player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then 
+        return hidePrediction() 
+    end
+    
+    -- Игнорируем себя и камеру при расчете стен
+    raycastParams.FilterDescendantsInstances = {character, Camera}
+    
+    -- ИСПРАВЛЕНИЕ ПАРАЛЛАКСА: Старт идет строго по центру направления взгляда
+    local startPos = Camera.CFrame.Position
+    local targetPos = Mouse.Hit.Position
+    
+    local direction = (targetPos - startPos).Unit
+    local velocity = direction * ARROW_SPEED
+    local currentPos = startPos
+    local timeStep = 0.032
+    
+    local hitObstacle = false
+    
+    for i = 1, DOT_COUNT do
+        local part = lineParts[i]
+        
+        if hitObstacle then
+            part.Transparency = 1
+        else
+            local nextVelocity = velocity + Vector3.new(0, -CUSTOM_GRAVITY * timeStep, 0)
+            local nextPos = currentPos + (velocity * timeStep)
+            
+            -- Проверка препятствий (стен, земли, NPC)
+            local raycastResult = workspace:Raycast(currentPos, nextPos - currentPos, raycastParams)
+            
+            -- Расстояние от камеры до текущей точки расчета
+            local distanceFromCam = (currentPos - Camera.CFrame.Position).Magnitude
+            
+            if raycastResult then
+                hitObstacle = true
+                part.Position = raycastResult.Position
+                
+                -- Конечную точку (маркер на NPC или стене) показываем ВСЕГДА, даже вблизи
+                part.Transparency = 0.1 
+                part.Size = Vector3.new(0.18, 0.18, 0.18)
+            else
+                part.Position = currentPos
+                part.Size = Vector3.new(0.1, 0.1, 0.1)
+                
+                -- УМНЫЙ ФИЛЬТР ОБЗОРА: Полностью скрываем шлейф в первые 10 метров от лица,
+                -- чтобы центр экрана был чистым. Дальше 10 метров шлейф плавно проявляется.
+                if distanceFromCam < 10 then
+                    part.Transparency = 1
+                else
+                    part.Transparency = 0.35 -- Пунктир на дистанции
+                end
+            end
+            
+            velocity = nextVelocity
+            currentPos = nextPos
+        end
+    end
+end)
+
+print("Снайперский предиктор без параллакса успешно запущен!")
+
+wait(1)
+
 loadstring(game:HttpGet('https://raw.githubusercontent.com/AAPVdev/scripts/refs/heads/main/UI_LimbExtender.lua'))()
 
