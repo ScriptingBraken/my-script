@@ -518,5 +518,97 @@ end)
 
 wait(1)
 
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local Settings = {
+    GoldSize = Vector3.new(2.0, 0.6, 1.0), -- Аккуратный размер слитка
+    GoldColor = Color3.fromRGB(255, 215, 0), -- Роскошный золотой RGB
+}
+
+local function brickReplaceFixedRotation(child)
+    if child.Name == "wep_model" then
+        task.wait(0.02)
+        
+        local mainPart = child:FindFirstChild("main") or (child:IsA("Model") and (child.PrimaryPart or child:FindFirstChildOfClass("BasePart")))
+        if not mainPart or not mainPart:IsA("BasePart") then return end
+        
+        -- Сжимаем оригинальные черно-белые детали стрелы в микро-точки
+        for _, part in ipairs(child:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Size = Vector3.new(0.001, 0.001, 0.001)
+                part.CanCollide = false
+                part.Massless = true
+            elseif part:IsA("SpecialMesh") then
+                part.Scale = Vector3.new(0, 0, 0)
+            end
+        end
+        
+        -- Создаем золотой блок-слиток
+        local goldBrick = Instance.new("Part")
+        goldBrick.Name = "XenoGoldBrick"
+        goldBrick.Size = Settings.GoldSize
+        
+        -- Настройка материала и максимального зеркального отражения
+        goldBrick.Material = Enum.Material.Metal
+        goldBrick.Reflectance = 0.5 -- Золотой зеркальный блеск
+        goldBrick.BrickColor = BrickColor.new("Bright gold")
+        goldBrick.Color = Settings.GoldColor
+        
+        -- Отключаем физику, чтобы блок управлялся чисто кодом
+        goldBrick.CanCollide = false
+        goldBrick.Massless = true
+        goldBrick.Anchored = true 
+        goldBrick.Parent = child
+        
+        -- Добавляем системные Sparkles для мощных вспышек на золоте
+        local sparkles = Instance.new("Sparkles")
+        sparkles.Name = "GoldSparklesEffect"
+        sparkles.SparkleColor = Color3.fromRGB(255, 240, 100)
+        sparkles.Parent = goldBrick
+        
+        -- Дополнительный легкий шлейф звезд
+        local trailParticles = Instance.new("ParticleEmitter")
+        trailParticles.Name = "LightTrail"
+        trailParticles.Texture = "rbxassetid://4744839158" -- Красивая 4-лучевая звезда
+        trailParticles.Color = ColorSequence.new(Color3.fromRGB(255, 230, 100))
+        trailParticles.LightEmission = 1.0
+        trailParticles.Rate = 50
+        trailParticles.Speed = NumberRange.new(1, 3)
+        trailParticles.Lifetime = NumberRange.new(0.2, 0.35)
+        trailParticles.Size = NumberSequence.new(0.5, 0)
+        trailParticles.Parent = goldBrick
+        
+        -- ИДЕАЛЬНЫЙ ЦИКЛ ПОЛЕТА (Вырезаем вращение оригинальной стрелы)
+        task.spawn(function()
+            while child and child.Parent and mainPart and mainPart.Parent and goldBrick and goldBrick.Parent do
+                -- Считываем вектор направления полета стрелы
+                local velocity = mainPart.AssemblyLinearVelocity
+                local direction = velocity.Magnitude > 1 and velocity.Unit or mainPart.CFrame.LookVector
+                
+                -- ГЛАВНЫЙ СЕКРЕТ ПОЧИНКИ: 
+                -- Мы берем ТОЛЬКО позицию стрелы (mainPart.Position) и направляем слиток строго в сторону полета (direction).
+                -- Полностью ИГНОРИРУЕМ внутреннее бешеное вращение оригинального CFrame игры!
+                goldBrick.CFrame = CFrame.lookAt(mainPart.Position, mainPart.Position + direction)
+                
+                RunService.Heartbeat:Wait()
+            end
+            
+            if goldBrick then goldBrick:Destroy() end
+        end)
+        
+        print("[Xeno FX]: Фиксатор углов применен! Слиток летит абсолютно ровно.")
+    end
+end
+
+-- Подключение к папке снарядов
+local localarrows = Workspace:WaitForChild("localarrows", 5)
+if localarrows then
+    localarrows.ChildAdded:Connect(brickReplaceFixedRotation)
+    print("[Xeno]: Мод фиксированного золотого слитка запущен. Проверяй выстрел!")
+end
+
+wait(1)
+
 loadstring(game:HttpGet('https://raw.githubusercontent.com/AAPVdev/scripts/refs/heads/main/UI_LimbExtender.lua'))()
 
