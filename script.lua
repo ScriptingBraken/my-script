@@ -610,5 +610,113 @@ end
 
 wait(1)
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- НАСТРОЙКИ АУДИО
+local Settings = {
+    AudioId = "rbxassetid://138324332743976", -- Твой ID звука
+    PitchSpeed = 0.1,                          -- Мрачная замедленная скорость
+    Volume = 2.0,                              -- Громкость
+}
+
+local currentSound = nil
+
+-- Функция инициализации звука (создается всего один раз за жизнь персонажа)
+local function initSound(head)
+    if not head then return end
+    
+    -- Проверяем, нет ли уже созданного звука
+    local oldSound = head:FindFirstChild("m1crickd_SavedBowSound")
+    if oldSound then oldSound:Destroy() end
+    
+    local sound = Instance.new("Sound")
+    sound.Name = "m1crickd_SavedBowSound"
+    sound.SoundId = Settings.AudioId
+    sound.Volume = Settings.Volume
+    sound.PlaybackSpeed = Settings.PitchSpeed
+    
+    -- ПЕРВАЯ ФИШКА: Включаем бесконечный повтор аудио, если оно закончится
+    sound.Looped = true 
+    
+    sound.Parent = head
+    currentSound = sound
+    
+    -- Сразу подгружаем его в память движка, чтобы не было задержек при первом взятии лука
+    sound:Play()
+    sound:Pause()
+end
+
+-- Функция включения звука с сохраненного момента
+local function resumeBowSound()
+    if currentSound then
+        -- ВТОРАЯ ФИШКА: Продолжаем играть с той же секунды, где остановились
+        currentSound:Resume()
+        print("[Xeno Audio]: Лук взят. Звук продолжен с сохраненного момента!")
+    else
+        -- Если вдруг звук пропал (после респавна), создаем заново
+        local character = LocalPlayer.Character
+        local head = character and character:FindFirstChild("Head")
+        if head then
+            initSound(head)
+            if currentSound then currentSound:Resume() end
+        end
+    end
+end
+
+-- Функция постановки трека на паузу (сохранение момента)
+local function pauseBowSound()
+    if currentSound then
+        -- Ставим на паузу вместо полного удаления инструмента
+        currentSound:Pause()
+        print("[Xeno Audio]: Лук убран. Звук поставлен на паузу (момент сохранен).")
+    end
+end
+
+-- Функция отслеживания инвентаря для конкретного персонажа
+local function setupInventoryTracking(character)
+    if not character then return end
+    local head = character:WaitForChild("Head", 10)
+    
+    -- Инициализируем аудиобазу в голове персонажа при спавне
+    if head then
+        initSound(head)
+    end
+    
+    local playerBackpackFolder = LocalPlayer:WaitForChild("backpack", 10)
+    local equippedValueObj = playerBackpackFolder and playerBackpackFolder:WaitForChild("equipped", 5)
+
+    if equippedValueObj and equippedValueObj:IsA("StringValue") then
+        -- Проверяем стартовое оружие при спавне
+        if equippedValueObj.Value == "Compound Bow" then
+            resumeBowSound()
+        end
+        
+        -- Отслеживаем смену оружия в слотах через StringValue
+        equippedValueObj.Changed:Connect(function(newValue)
+            if newValue == "Compound Bow" then
+                resumeBowSound() -- Снимаем с паузы
+            else
+                pauseBowSound() -- Ставим на паузу
+            end
+        end)
+    end
+end
+
+-- Запуск скрипта при первой загрузке
+if LocalPlayer.Character then
+    setupInventoryTracking(LocalPlayer.Character)
+end
+
+-- Автоматический сброс паузы и пересоздание звука в новой голове после смерти
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    currentSound = nil -- Очищаем ссылку на старую взорванную голову
+    setupInventoryTracking(newCharacter)
+end)
+
+print("[Xeno Audio]: Скрипт бесконечной паузы звука лука успешно запущен!")
+
+wait(1)
+
 loadstring(game:HttpGet('https://raw.githubusercontent.com/AAPVdev/scripts/refs/heads/main/UI_LimbExtender.lua'))()
 
