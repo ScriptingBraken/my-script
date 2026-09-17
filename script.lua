@@ -309,7 +309,7 @@ local function patchSoundCombined(soundObject)
         
     elseif name == "arrowpass" then
         soundObject.SoundId = ID_BOW_PASS
-        soundObject.Volume = 0.33 
+        soundObject.Volume = 1 
         soundObject.PlaybackSpeed = 1.0
         
     elseif name == "arrowhitbody" then
